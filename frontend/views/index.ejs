@@ -1,0 +1,863 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DeepScope - New Diagnosis</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        /* ==========================================
+           MEDICAL UPLOAD & CLINICAL DATA PAGE
+           ========================================== */
+
+        :root {
+            /* Primary Colors */
+            --primary-burgundy: #6B1F1F;
+            --primary-crimson: #8B2F2F;
+            --primary-rose: #A94442;
+            --deep-burgundy: #4A1515;
+            
+            /* Accent Colors */
+            --accent-red: #FF6B6B;
+            --accent-pink: #FFB3B3;
+            
+            /* Neutral Colors */
+            --white: #FFFFFF;
+            
+            /* Typography */
+            --font-display: 'Playfair Display', serif;
+            --font-body: 'DM Sans', sans-serif;
+            
+            /* Spacing */
+            --spacing-xs: 0.5rem;
+            --spacing-sm: 1rem;
+            --spacing-md: 1.5rem;
+            --spacing-lg: 2rem;
+            --spacing-xl: 3rem;
+            
+            /* Border Radius */
+            --radius-sm: 8px;
+            --radius-md: 12px;
+            --radius-lg: 16px;
+            --radius-xl: 20px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font-body);
+            background: linear-gradient(135deg, var(--deep-burgundy) 0%, var(--primary-burgundy) 50%, var(--primary-crimson) 100%);
+            color: var(--white);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* DNA Background */
+        .dna-background {
+            position: fixed;
+            top: 0;
+            right: 0;
+            width: 50%;
+            height: 100%;
+            z-index: 0;
+            pointer-events: none;
+            opacity: 0.4;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 800"><path d="M200 50 Q220 100 200 150 Q180 200 200 250 Q220 300 200 350 Q180 400 200 450 Q220 500 200 550 Q180 600 200 650 Q220 700 200 750" stroke="%23FFB3B3" stroke-width="4" fill="none" opacity="0.3"/><circle cx="200" cy="100" r="15" fill="%23FF6B6B" opacity="0.5"/><circle cx="200" cy="250" r="15" fill="%23FF6B6B" opacity="0.5"/><circle cx="200" cy="400" r="15" fill="%23FF6B6B" opacity="0.5"/><circle cx="200" cy="550" r="15" fill="%23FF6B6B" opacity="0.5"/><circle cx="200" cy="700" r="15" fill="%23FF6B6B" opacity="0.5"/></svg>') no-repeat center right;
+            background-size: contain;
+        }
+
+        /* Navigation */
+        .navbar {
+            position: relative;
+            z-index: 100;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: var(--spacing-md) var(--spacing-xl);
+            background: rgba(10, 10, 10, 0.3);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .nav-brand {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .logo-icon {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, var(--accent-red), var(--primary-rose));
+            border-radius: 8px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .logo-icon::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 16px;
+            height: 16px;
+            background: white;
+            border-radius: 50%;
+            opacity: 0.3;
+        }
+
+        .brand-name {
+            font-size: 1.25rem;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+        }
+
+        .nav-menu {
+            display: flex;
+            gap: var(--spacing-sm);
+        }
+
+        .nav-item {
+            padding: 0.625rem 1.25rem;
+            border-radius: var(--radius-lg);
+            font-size: 0.9375rem;
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.7);
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+
+        .nav-item:hover {
+            color: var(--white);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .nav-item.active {
+            background: var(--primary-rose);
+            color: var(--white);
+            box-shadow: 0 4px 12px rgba(169, 68, 66, 0.3);
+        }
+
+        /* Main Container */
+        .main-container {
+            position: relative;
+            z-index: 10;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: var(--spacing-xl);
+        }
+
+        .page-header {
+            margin-bottom: var(--spacing-xl);
+            animation: fadeInUp 0.8s ease-out;
+        }
+
+        .page-title {
+            font-family: var(--font-display);
+            font-size: 3rem;
+            font-weight: 700;
+            line-height: 1.2;
+            letter-spacing: -0.02em;
+            background: linear-gradient(135deg, var(--white) 0%, rgba(255, 255, 255, 0.8) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .page-subtitle {
+            font-size: 1.125rem;
+            color: rgba(255, 255, 255, 0.7);
+            font-weight: 400;
+        }
+
+        /* Form Grid */
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--spacing-lg);
+            animation: fadeInUp 0.8s ease-out 0.2s backwards;
+        }
+
+        .form-section {
+            background: rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(20px);
+            border-radius: var(--radius-xl);
+            padding: var(--spacing-xl);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        .section-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: var(--spacing-sm);
+            color: var(--white);
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+        }
+
+        .section-number {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, var(--accent-red), var(--primary-rose));
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.875rem;
+            font-weight: 700;
+        }
+
+        .section-description {
+            font-size: 0.9375rem;
+            color: rgba(255, 255, 255, 0.6);
+            margin-bottom: var(--spacing-lg);
+        }
+
+        /* Upload Section */
+        .drop-zone {
+            border: 2px dashed rgba(255, 255, 255, 0.2);
+            border-radius: var(--radius-lg);
+            padding: var(--spacing-xl);
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: rgba(255, 255, 255, 0.02);
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .drop-zone:hover {
+            border-color: var(--accent-red);
+            background: rgba(255, 107, 107, 0.05);
+        }
+
+        .drop-zone.dragover {
+            border-color: var(--accent-red);
+            background: rgba(255, 107, 107, 0.1);
+            transform: scale(1.02);
+        }
+
+        .upload-icon {
+            width: 64px;
+            height: 64px;
+            margin: 0 auto var(--spacing-md);
+            background: linear-gradient(135deg, var(--accent-red), var(--primary-rose));
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .drop-zone-text {
+            font-size: 1.125rem;
+            font-weight: 500;
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .drop-zone-hint {
+            font-size: 0.875rem;
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .preview-container {
+            padding: var(--spacing-md);
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: var(--radius-md);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            display: none;
+        }
+
+        .preview-image {
+            width: 100%;
+            border-radius: var(--radius-md);
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .preview-info {
+            font-size: 0.875rem;
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        /* Form Fields */
+        .form-group {
+            margin-bottom: var(--spacing-md);
+        }
+
+        .form-label {
+            display: block;
+            font-size: 0.9375rem;
+            font-weight: 500;
+            margin-bottom: var(--spacing-xs);
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        .required {
+            color: var(--accent-red);
+            margin-left: 0.25rem;
+        }
+
+        .form-input,
+        .form-select,
+        .form-textarea {
+            width: 100%;
+            padding: 0.75rem;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: var(--radius-sm);
+            color: var(--white);
+            font-family: var(--font-body);
+            font-size: 0.9375rem;
+            transition: all 0.3s ease;
+        }
+
+        .form-input:focus,
+        .form-select:focus,
+        .form-textarea:focus {
+            outline: none;
+            border-color: var(--accent-red);
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .form-input::placeholder {
+            color: rgba(255, 255, 255, 0.4);
+        }
+
+        /* FIXED: Dropdown styling */
+        .form-select {
+            appearance: none;
+            background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>');
+            background-repeat: no-repeat;
+            background-position: right 0.75rem center;
+            background-size: 20px;
+            padding-right: 2.5rem;
+            cursor: pointer;
+        }
+
+        .form-select option {
+            background: var(--primary-burgundy);
+            color: var(--white);
+            padding: 0.5rem;
+        }
+
+        .form-select option:hover,
+        .form-select option:checked {
+            background: var(--primary-rose);
+            color: var(--white);
+        }
+
+        .form-textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        .form-hint {
+            display: block;
+            font-size: 0.75rem;
+            color: rgba(255, 255, 255, 0.5);
+            margin-top: 0.25rem;
+        }
+
+        /* Checkbox Grid for Comorbidities */
+        .checkbox-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: var(--spacing-sm);
+            margin-top: var(--spacing-xs);
+        }
+
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            padding: 0.75rem;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .checkbox-item:hover {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: var(--accent-red);
+        }
+
+        .checkbox-item input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            margin-right: var(--spacing-xs);
+            cursor: pointer;
+            accent-color: var(--accent-red);
+        }
+
+        .checkbox-item label {
+            cursor: pointer;
+            font-size: 0.875rem;
+            flex: 1;
+            user-select: none;
+        }
+
+        .checkbox-item.checked {
+            background: rgba(255, 107, 107, 0.1);
+            border-color: var(--accent-red);
+        }
+
+        /* Submit Button */
+        .submit-section {
+            grid-column: 1 / -1;
+            display: flex;
+            justify-content: center;
+            margin-top: var(--spacing-lg);
+        }
+
+        .submit-button {
+            padding: 1.125rem 3rem;
+            background: linear-gradient(135deg, var(--accent-red), var(--primary-rose));
+            color: var(--white);
+            border: none;
+            border-radius: var(--radius-md);
+            font-size: 1.125rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-family: var(--font-body);
+            min-width: 300px;
+        }
+
+        .submit-button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(169, 68, 66, 0.4);
+        }
+
+        .submit-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Error Message */
+        .error-message {
+            background: rgba(255, 107, 107, 0.1);
+            border: 1px solid rgba(255, 107, 107, 0.3);
+            border-radius: var(--radius-md);
+            padding: var(--spacing-md);
+            color: var(--accent-pink);
+            margin-bottom: var(--spacing-lg);
+            animation: shake 0.5s ease;
+        }
+
+        /* Animations */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
+        }
+
+        /* Responsive */
+        @media (max-width: 968px) {
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .page-title {
+                font-size: 2.5rem;
+            }
+
+            .nav-menu {
+                display: none;
+            }
+
+            .checkbox-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Loading Spinner */
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+            margin-left: var(--spacing-sm);
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <!-- Background DNA Illustration -->
+    <div class="dna-background"></div>
+
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-brand">
+            <div class="logo-icon"></div>
+            <span class="brand-name">DeepScope</span>
+        </div>
+        <div class="nav-menu">
+            <a href="/" class="nav-item active">New diagnosis</a>
+            <a href="/dashboard" class="nav-item">Dashboard</a>
+            <a href="/treatment" class="nav-item">Treatment</a>
+            <a href="/history" class="nav-item">History</a>
+        </div>
+    </nav>
+
+    <!-- Main Container -->
+    <div class="main-container">
+        <!-- Page Header -->
+        <header class="page-header">
+            <h1 class="page-title">New Diagnosis</h1>
+            <p class="page-subtitle">Upload your histopathology image and provide clinical information for AI-powered analysis</p>
+        </header>
+
+        <!-- Error Message (if any) -->
+        <% if (typeof error !== 'undefined' && error) { %>
+            <div class="error-message">
+                <strong>Error:</strong> <%= error %>
+            </div>
+        <% } %>
+
+        <!-- Main Form -->
+        <form id="diagnosisForm" action="/upload" method="POST" enctype="multipart/form-data">
+            <div class="form-grid">
+                <!-- Section 1: Image Upload -->
+                <div class="form-section">
+                    <h2 class="section-title">
+                        <span class="section-number">1</span>
+                        Histopathology Image
+                    </h2>
+                    <p class="section-description">
+                        Upload a high-quality H&E stained tissue sample image for AI analysis
+                    </p>
+
+                    <div class="drop-zone" id="dropZone">
+                        <div class="upload-icon">
+                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
+                                <path d="M12 4L12 16M12 4L8 8M12 4L16 8" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M4 17V19C4 20.1046 4.89543 21 6 21H18C19.1046 21 20 20.1046 20 19V17" stroke="white" stroke-width="2" stroke-linecap="round"/>
+                            </svg>
+                        </div>
+                        <p class="drop-zone-text">Drag & drop your image here</p>
+                        <p class="drop-zone-hint">or click to browse (JPG, PNG, TIF - Max 10MB)</p>
+                        <input type="file" 
+                               name="histology_image" 
+                               id="fileInput" 
+                               class="file-input"
+                               accept=".jpg,.jpeg,.png,.tif,.tiff"
+                               required>
+                    </div>
+
+                    <div id="previewContainer" class="preview-container">
+                        <img id="previewImage" class="preview-image" src="" alt="Preview">
+                        <p class="preview-info" id="previewInfo"></p>
+                    </div>
+                </div>
+
+                <!-- Section 2: Clinical Information -->
+                <div class="form-section">
+                    <h2 class="section-title">
+                        <span class="section-number">2</span>
+                        Clinical Information
+                    </h2>
+                    <p class="section-description">
+                        Provide patient details for personalized treatment recommendations
+                    </p>
+
+                    <!-- Required Fields -->
+                    <div class="form-group">
+                        <label class="form-label">
+                            Patient Age<span class="required">*</span>
+                        </label>
+                        <input type="number" 
+                               class="form-input" 
+                               id="age" 
+                               name="age" 
+                               placeholder="e.g., 60" 
+                               required 
+                               min="18" 
+                               max="120">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">
+                            Sex<span class="required">*</span>
+                        </label>
+                        <select class="form-select" id="sex" name="sex" required>
+                            <option value="">Select...</option>
+                            <option value="Male">Male</option>
+                            <option value="Female">Female</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+
+                    <!-- Comorbidities as Checkboxes -->
+                    <div class="form-group">
+                        <label class="form-label">Comorbidities</label>
+                        <div class="checkbox-grid">
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="diabetes" name="comorbidity_diabetes" value="Type 2 Diabetes">
+                                <label for="diabetes">Type 2 Diabetes</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="hypertension" name="comorbidity_hypertension" value="Hypertension">
+                                <label for="hypertension">Hypertension</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="heart_disease" name="comorbidity_heart_disease" value="Heart Disease">
+                                <label for="heart_disease">Heart Disease</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="kidney_disease" name="comorbidity_kidney_disease" value="Kidney Disease">
+                                <label for="kidney_disease">Kidney Disease</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="liver_disease" name="comorbidity_liver_disease" value="Liver Disease">
+                                <label for="liver_disease">Liver Disease</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="copd" name="comorbidity_copd" value="COPD">
+                                <label for="copd">COPD</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="obesity" name="comorbidity_obesity" value="Obesity">
+                                <label for="obesity">Obesity</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="anemia" name="comorbidity_anemia" value="Anemia">
+                                <label for="anemia">Anemia</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Activity Level</label>
+                        <select class="form-select" id="activity_level" name="activity_level">
+                            <option value="">Select...</option>
+                            <option value="sedentary">Sedentary (minimal activity)</option>
+                            <option value="lightly_active">Lightly Active (1-3 days/week)</option>
+                            <option value="moderately_active">Moderately Active (3-5 days/week)</option>
+                            <option value="very_active">Very Active (6-7 days/week)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Smoking Status</label>
+                        <select class="form-select" id="smoking_status" name="smoking_status">
+                            <option value="">Select...</option>
+                            <option value="never_smoker">Never Smoker</option>
+                            <option value="former_smoker">Former Smoker</option>
+                            <option value="current_smoker">Current Smoker</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Family History of Colorectal Cancer</label>
+                        <select class="form-select" id="family_history" name="family_history">
+                            <option value="false">No</option>
+                            <option value="true">Yes</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">BMI (Body Mass Index)</label>
+                        <input type="number" 
+                               class="form-input" 
+                               id="bmi" 
+                               name="bmi" 
+                               step="0.1" 
+                               min="10"  
+                               placeholder="e.g., 24.5">
+                        <small class="form-hint">Weight (kg) ÷ Height² (m²)</small>
+                    </div>
+
+                    <!-- Additional Information -->
+                    <div class="form-group">
+                        <label class="form-label">Additional Information</label>
+                        <textarea 
+                            class="form-textarea" 
+                            id="additional_info" 
+                            name="additional_info" 
+                            placeholder="Enter any additional medical history, symptoms, or relevant information..."
+                            rows="4"></textarea>
+                        <small class="form-hint">Include any other details that may be relevant to diagnosis and treatment</small>
+                    </div>
+                </div>
+
+                <!-- Submit Section -->
+                <div class="submit-section">
+                    <button type="submit" class="submit-button" id="submitButton" disabled>
+                        <span id="buttonText">Analyze & Generate Treatment Plan</span>
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const diagnosisForm = document.getElementById('diagnosisForm');
+        const submitButton = document.getElementById('submitButton');
+        const buttonText = document.getElementById('buttonText');
+        const previewContainer = document.getElementById('previewContainer');
+        const previewImage = document.getElementById('previewImage');
+        const previewInfo = document.getElementById('previewInfo');
+
+        // Click to browse
+        dropZone.addEventListener('click', () => fileInput.click());
+
+        // Drag and drop handlers
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('dragover');
+        });
+
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('dragover');
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                fileInput.files = files;
+                handleFileSelect(files[0]);
+            }
+        });
+
+        // File input change
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFileSelect(e.target.files[0]);
+            }
+        });
+
+        function handleFileSelect(file) {
+            // Validate file type
+            const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/tiff', 'image/tif'];
+            const validExtensions = ['.jpg', '.jpeg', '.png', '.tif', '.tiff'];
+            
+            const fileExtension = '.' + file.name.split('.').pop().toLowerCase();
+            const isValidType = validTypes.includes(file.type) || validExtensions.includes(fileExtension);
+            
+            if (!isValidType) {
+                alert('Please upload a valid image file (JPG, PNG, or TIF)');
+                return;
+            }
+
+            // Validate file size (10MB)
+            if (file.size > 10 * 1024 * 1024) {
+                alert('File size must be less than 10MB');
+                return;
+            }
+
+            // Check if TIFF file
+            const isTiff = fileExtension === '.tif' || fileExtension === '.tiff' || file.type === 'image/tiff';
+            
+            if (isTiff) {
+                // TIFF files can't be previewed in browser - show placeholder
+                previewImage.style.display = 'none';
+                previewInfo.innerHTML = `
+                    <div style="text-align: center; padding: 2rem; background: rgba(255,255,255,0.05); border-radius: 8px;">
+                        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" style="margin: 0 auto 1rem; opacity: 0.5;">
+                            <path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z" fill="white"/>
+                        </svg>
+                        <p style="margin-bottom: 0.5rem;"><strong>${file.name}</strong></p>
+                        <p style="font-size: 0.875rem; color: rgba(255,255,255,0.6);">
+                            ${(file.size / 1024).toFixed(2)} KB • TIFF format
+                        </p>
+                        <p style="font-size: 0.75rem; color: rgba(255,255,255,0.5); margin-top: 0.5rem;">
+                            ✓ File ready for analysis (preview not available for TIFF files)
+                        </p>
+                    </div>
+                `;
+                previewContainer.style.display = 'block';
+                submitButton.disabled = false;
+            } else {
+                // Show preview for JPG/PNG
+                previewImage.style.display = 'block';
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    previewImage.src = e.target.result;
+                    previewInfo.innerHTML = `<strong>${file.name}</strong> (${(file.size / 1024).toFixed(2)} KB)`;
+                    previewContainer.style.display = 'block';
+                    submitButton.disabled = false;
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        // Checkbox visual feedback
+        document.querySelectorAll('.checkbox-item input[type="checkbox"]').forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                if (this.checked) {
+                    this.closest('.checkbox-item').classList.add('checked');
+                } else {
+                    this.closest('.checkbox-item').classList.remove('checked');
+                }
+            });
+        });
+
+        // Form submission with loading state
+        diagnosisForm.addEventListener('submit', (e) => {
+            // Collect selected comorbidities
+            const selectedComorbidities = [];
+            document.querySelectorAll('.checkbox-item input[type="checkbox"]:checked').forEach(checkbox => {
+                selectedComorbidities.push(checkbox.value);
+            });
+            
+            // Create a hidden input with comma-separated comorbidities
+            const comorbiditiesInput = document.createElement('input');
+            comorbiditiesInput.type = 'hidden';
+            comorbiditiesInput.name = 'comorbidities';
+            comorbiditiesInput.value = selectedComorbidities.join(', ');
+            diagnosisForm.appendChild(comorbiditiesInput);
+
+            submitButton.disabled = true;
+            buttonText.innerHTML = 'Processing... <span class="loading-spinner"></span>';
+        });
+
+        // Auto-enable submit button when both image and required fields are filled
+        function checkFormValidity() {
+            const hasImage = fileInput.files.length > 0;
+            const age = document.getElementById('age').value;
+            const sex = document.getElementById('sex').value;
+            
+            submitButton.disabled = !(hasImage && age && sex);
+        }
+
+        document.getElementById('age').addEventListener('input', checkFormValidity);
+        document.getElementById('sex').addEventListener('change', checkFormValidity);
+    </script>
+</body>
+</html>

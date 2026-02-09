@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DeepScope - Results</title>
+    <link rel="stylesheet" href="/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+    <style>
+        .results-page {
+            position: relative;
+            z-index: 10;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: var(--spacing-xl);
+        }
+
+        .results-header {
+            margin-bottom: var(--spacing-xl);
+            animation: fadeInUp 0.8s ease-out;
+        }
+
+        .results-grid {
+            display: grid;
+            gap: var(--spacing-lg);
+        }
+
+        .result-card {
+            background: rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(20px);
+            border-radius: var(--radius-xl);
+            padding: var(--spacing-xl);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            animation: fadeInUp 0.8s ease-out;
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .card-icon {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, var(--accent-red), var(--primary-rose));
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .card-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        .diagnosis-grid {
+            display: grid;
+            grid-template-columns: 400px 1fr;
+            gap: var(--spacing-lg);
+        }
+
+        .image-section img {
+            width: 100%;
+            border-radius: var(--radius-lg);
+            margin-bottom: var(--spacing-md);
+        }
+
+        .diagnosis-details {
+            background: linear-gradient(135deg, var(--primary-crimson), var(--primary-rose));
+            padding: var(--spacing-lg);
+            border-radius: var(--radius-lg);
+            margin-bottom: var(--spacing-md);
+        }
+
+        .diagnosis-class {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .confidence-meter {
+            margin-top: var(--spacing-md);
+        }
+
+        .confidence-label {
+            font-size: 0.875rem;
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .confidence-bar {
+            width: 100%;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .confidence-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-red), var(--accent-pink));
+            border-radius: 4px;
+            transition: width 1s ease-out;
+        }
+
+        .patient-info {
+            background: rgba(0, 0, 0, 0.2);
+            padding: var(--spacing-md);
+            border-radius: var(--radius-md);
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: var(--spacing-xs) 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .info-row:last-child {
+            border-bottom: none;
+        }
+
+        .info-label {
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 0.875rem;
+        }
+
+        .info-value {
+            font-weight: 600;
+        }
+
+        .treatment-content {
+            background: rgba(255, 255, 255, 0.03);
+            padding: var(--spacing-lg);
+            border-radius: var(--radius-lg);
+            white-space: pre-wrap;
+            line-height: 1.8;
+            font-size: 0.9375rem;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: var(--spacing-md);
+            margin-top: var(--spacing-lg);
+        }
+
+        .action-button {
+            padding: 0.875rem 1.75rem;
+            border-radius: var(--radius-md);
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: none;
+            font-family: var(--font-body);
+            font-size: 0.9375rem;
+        }
+
+        .primary-button {
+            background: linear-gradient(135deg, var(--accent-red), var(--primary-rose));
+            color: var(--white);
+        }
+
+        .secondary-button {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--white);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .action-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+        }
+
+        @media (max-width: 968px) {
+            .diagnosis-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="dna-background"></div>
+
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-brand">
+            <div class="logo-icon"></div>
+            <span class="brand-name">DeepScope</span>
+        </div>
+        <div class="nav-menu">
+            <a href="/" class="nav-item">New diagnosis</a>
+            <a href="/dashboard" class="nav-item">Dashboard</a>
+            <a href="/treatment" class="nav-item">Treatment</a>
+            <a href="/history" class="nav-item">History</a>
+        </div>
+    </nav>
+
+    <div class="results-page">
+        <!-- Header -->
+        <header class="results-header">
+            <h1 class="dashboard-title">Diagnosis & Treatment Results</h1>
+            <p class="patient-info">
+                <strong>Patient:</strong> <%= patient.sex %>, <%= patient.age %> years old
+            </p>
+        </header>
+
+        <div class="results-grid">
+            <!-- Diagnosis Section -->
+            <div class="result-card">
+                <div class="card-header">
+                    <div class="card-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                            <path d="M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z" fill="white"/>
+                        </svg>
+                    </div>
+                    <h2 class="card-title">Diagnosis Analysis</h2>
+                </div>
+
+                <div class="diagnosis-grid">
+                    <div class="image-section">
+                        <img src="/uploaded/<%= image_filename %>" alt="Histopathology Image">
+                        <p style="font-size: 0.875rem; color: rgba(255, 255, 255, 0.6);">
+                            H&E Stained Tissue Sample
+                        </p>
+                    </div>
+
+                    <div>
+                        <div class="diagnosis-details">
+                            <h3 class="diagnosis-class"><%= diagnosis.predicted_class || 'Unknown' %></h3>
+                            
+                            <% if (diagnosis.tissue_type) { %>
+                                <p style="margin-bottom: var(--spacing-sm);">
+                                    <strong>Tissue Type:</strong> <%= diagnosis.tissue_type %>
+                                </p>
+                            <% } %>
+
+                            <% if (diagnosis.confidence) { %>
+                                <div class="confidence-meter">
+                                    <div class="confidence-label">
+                                        Confidence: <%= (diagnosis.confidence * 100).toFixed(1) %>%
+                                    </div>
+                                    <div class="confidence-bar">
+                                        <div class="confidence-fill" style="width: <%= diagnosis.confidence * 100 %>%"></div>
+                                    </div>
+                                </div>
+                            <% } %>
+                        </div>
+
+                        <div class="patient-info">
+                            <h4 style="margin-bottom: var(--spacing-sm);">Patient Clinical Data</h4>
+                            
+                            <div class="info-row">
+                                <span class="info-label">Age</span>
+                                <span class="info-value"><%= patient.age %> years</span>
+                            </div>
+                            
+                            <div class="info-row">
+                                <span class="info-label">Sex</span>
+                                <span class="info-value"><%= patient.sex %></span>
+                            </div>
+                            
+                            <% if (patient.comorbidities && patient.comorbidities.length > 0) { %>
+                                <div class="info-row">
+                                    <span class="info-label">Comorbidities</span>
+                                    <span class="info-value"><%= patient.comorbidities.join(', ') %></span>
+                                </div>
+                            <% } %>
+                            
+                            <div class="info-row">
+                                <span class="info-label">Activity Level</span>
+                                <span class="info-value"><%= patient.activity_level %></span>
+                            </div>
+                            
+                            <div class="info-row">
+                                <span class="info-label">Smoking Status</span>
+                                <span class="info-value"><%= patient.smoking_status %></span>
+                            </div>
+                            
+                            <div class="info-row">
+                                <span class="info-label">Family History</span>
+                                <span class="info-value"><%= patient.family_history ? 'Yes' : 'No' %></span>
+                            </div>
+                            
+                            <div class="info-row">
+                                <span class="info-label">BMI</span>
+                                <span class="info-value"><%= patient.bmi %></span>
+                            </div>
+                            
+                            <% if (patient.additional_info && patient.additional_info !== 'None') { %>
+                                <div class="info-row">
+                                    <span class="info-label">Additional Information</span>
+                                    <span class="info-value"><%= patient.additional_info %></span>
+                                </div>
+                            <% } %>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Treatment Section -->
+            <div class="result-card">
+                <div class="card-header">
+                    <div class="card-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                            <path d="M12 2L4 7V13C4 17.5 7.5 21.6 12 22C16.5 21.6 20 17.5 20 13V7L12 2Z" fill="white"/>
+                        </svg>
+                    </div>
+                    <h2 class="card-title">Personalized Treatment Plan</h2>
+                </div>
+
+                <div class="treatment-content">
+<%= treatment.recommendation || 'Treatment plan will appear here...' %>
+                </div>
+
+                <div class="action-buttons">
+                    <button class="action-button primary-button" onclick="window.print()">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="display: inline-block; margin-right: 0.5rem; vertical-align: middle;">
+                            <path d="M6 9V2H18V9M6 18H4C3.46957 18 2.96086 17.7893 2.58579 17.4142C2.21071 17.0391 2 16.5304 2 16V11C2 10.4696 2.21071 9.96086 2.58579 9.58579C2.96086 9.21071 3.46957 9 4 9H20C20.5304 9 21.0391 9.21071 21.4142 9.58579C21.7893 9.96086 22 10.4696 22 11V16C22 16.5304 21.7893 17.0391 21.4142 17.4142C21.0391 17.7893 20.5304 18 20 18H18M6 14H18V22H6V14Z" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        Print Report
+                    </button>
+                    <button class="action-button secondary-button" onclick="downloadReport()">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="display: inline-block; margin-right: 0.5rem; vertical-align: middle;">
+                            <path d="M12 3V16M12 16L7 11M12 16L17 11M3 17V19C3 19.5304 3.21071 20.0391 3.58579 20.4142C3.96086 20.7893 4.46957 21 5 21H19C19.5304 21 20.0391 20.7893 20.4142 20.4142C20.7893 20.0391 21 19.5304 21 19V17" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        Download PDF
+                    </button>
+                    <button class="action-button secondary-button" onclick="window.location.href='/dashboard'">
+                        View Dashboard
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Animate confidence bar on load
+        window.addEventListener('load', () => {
+            const confidenceFill = document.querySelector('.confidence-fill');
+            if (confidenceFill) {
+                setTimeout(() => {
+                    confidenceFill.style.width = confidenceFill.style.width;
+                }, 100);
+            }
+        });
+
+        function downloadReport() {
+            // This would integrate with a PDF generation library
+            alert('PDF download functionality will be implemented with a backend PDF generator');
+        }
+    </script>
+</body>
+</html>

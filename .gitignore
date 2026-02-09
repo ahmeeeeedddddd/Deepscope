@@ -1,0 +1,9 @@
+/results
+/geminiKey.txt
+/confusion_matrix_results
+/evaluation_results
+/frontend/node_modules
+/models
+/data
+backend/__pycache__
+backend/uploads
