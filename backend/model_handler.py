@@ -7,7 +7,8 @@ This module handles:
 1. Loading the trained Lunit DINO ViT model
 2. Running inference on preprocessed images
 3. Post-processing predictions (softmax, class mapping, confidence)
-4. Returning structured results to Flask API
+4. Generating Grad-CAM visualizations for explainability
+5. Returning structured results to Flask API
 
 Model: Lunit DINO (ViT-Small/8) fine-tuned on NCT-CRC-HE-100K
 Task: 9-class tissue classification
@@ -16,12 +17,20 @@ Classes: ADI, BACK, DEB, LYM, MUC, MUS, NORM, STR, TUM
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import timm
 import json
 import numpy as np
 from pathlib import Path
-from typing import Dict, Any, Union, Optional
+from typing import Dict, Any, Union, Optional, Tuple
 import logging
+import cv2
+from PIL import Image
+import matplotlib
+matplotlib.use('Agg')  # Use non-GUI backend
+import matplotlib.pyplot as plt
+import matplotlib.cm as cm
+from datetime import datetime
 
 # Import preprocessing
 from preprocessing import initialize_preprocessor, preprocess_image
@@ -118,11 +127,18 @@ class LunitDINOClassifier(nn.Module):
         super().__init__()
         
         # Load pretrained Lunit DINO backbone (without classification head)
+        # Enable attention output for explainability
         self.backbone = timm.create_model(
             model_name,
             pretrained=True,
             num_classes=0  # Remove default head
         )
+
+        # Enable attention output in all blocks
+        for block in self.backbone.blocks:
+            if hasattr(block, 'attn'):
+                # Force attention to return attention weights
+                block.attn.fused_attn = False
         
         # Add custom classification head (matches training architecture)
         self.head = ViTClassificationHead(
@@ -131,6 +147,10 @@ class LunitDINOClassifier(nn.Module):
             dropout_rate=dropout_rate,
             use_batch_norm=True  # Match training config
         )
+        
+        # Store for Grad-CAM
+        self.features = None
+        self.gradients = None
         
         logger.info(f"✓ Initialized LunitDINOClassifier")
         logger.info(f"  Backbone: {model_name}")
@@ -142,7 +162,173 @@ class LunitDINOClassifier(nn.Module):
         features = self.backbone(x)  # [B, 384]
         logits = self.head(features)  # [B, num_classes]
         return logits
+    
+    def forward_with_features(self, x):
+        """
+        Forward pass that also returns intermediate features for Grad-CAM.
+        
+        Returns:
+            logits: Model predictions
+            features: Features before classification head
+        """
+        features = self.backbone(x)  # [B, 384]
+        self.features = features  # Store for Grad-CAM
+        logits = self.head(features)  # [B, num_classes]
+        return logits, features
 
+
+# ═══════════════════════════════════════════════════════════
+# GRAD-CAM IMPLEMENTATION FOR VISION TRANSFORMER
+# ═══════════════════════════════════════════════════════════
+
+class ViTAttentionRollout:
+    """
+    Attention Rollout for Vision Transformers.
+    
+    This extracts native attention weights from ViT layers,
+    which is more appropriate than Grad-CAM for transformer architectures.
+    """
+    
+    def __init__(self, model: nn.Module, head_fusion: str = "mean", discard_ratio: float = 0.9):
+        """
+        Initialize Attention Rollout.
+        
+        Args:
+            model: The ViT model
+            head_fusion: How to combine attention heads ('mean', 'max', 'min')
+            discard_ratio: Ratio of lowest attention values to discard
+        """
+        self.model = model
+        self.head_fusion = head_fusion
+        self.discard_ratio = discard_ratio
+        self.model.eval()
+    
+    def get_attention_maps(self, input_tensor: torch.Tensor) -> list:
+        """
+        Extract attention maps from all transformer blocks.
+        
+        Args:
+            input_tensor: Input image tensor [1, 3, 224, 224]
+            
+        Returns:
+            List of attention matrices from each layer
+        """
+        attention_maps = []
+        
+        def hook_fn(module, input, output):
+            # Store attention weights
+            # For timm ViT, we need to access the attention directly
+            if hasattr(module, 'get_attention_map'):
+                attn = module.get_attention_map()
+                if attn is not None:
+                    attention_maps.append(attn)
+        
+        # Custom hook to capture attention during forward pass
+        def attention_hook(module, input, output):
+            # Input to attention: [B, N, C]
+            # We need to manually compute attention to capture it
+            B, N, C = input[0].shape
+            
+            # Get qkv from the module
+            qkv = module.qkv(input[0]).reshape(B, N, 3, module.num_heads, C // module.num_heads).permute(2, 0, 3, 1, 4)
+            q, k, v = qkv[0], qkv[1], qkv[2]
+            
+            # Compute attention
+            attn = (q @ k.transpose(-2, -1)) * module.scale
+            attn = attn.softmax(dim=-1)
+            
+            attention_maps.append(attn.detach())
+        
+        # Register hooks on attention modules
+        hooks = []
+        for block in self.model.backbone.blocks:
+            if hasattr(block, 'attn'):
+                hook = block.attn.register_forward_hook(attention_hook)
+                hooks.append(hook)
+        
+        # Forward pass
+        with torch.no_grad():
+            _ = self.model(input_tensor)
+        
+        # Remove hooks
+        for hook in hooks:
+            hook.remove()
+        
+        return attention_maps
+    
+    def generate_rollout(
+        self,
+        input_tensor: torch.Tensor,
+        target_class: int = None,
+        start_layer: int = 0
+    ) -> np.ndarray:
+        """
+        Generate attention rollout heatmap.
+        
+        Args:
+            input_tensor: Input image tensor [1, 3, 224, 224]
+            target_class: Not used for attention rollout (kept for API compatibility)
+            start_layer: Layer to start rollout from (default: 0)
+            
+        Returns:
+            Heatmap as numpy array [224, 224]
+        """
+        
+        # Get attention maps from all layers
+        attention_maps = self.get_attention_maps(input_tensor)
+        
+        if len(attention_maps) == 0:
+            raise ValueError("No attention maps extracted. Check model architecture.")
+        
+        # Process attention maps
+        result = None
+        
+        for i, attn in enumerate(attention_maps[start_layer:]):
+            # attn shape: [batch, num_heads, num_patches+1, num_patches+1]
+            attn = attn.squeeze(0)  # Remove batch dimension: [num_heads, seq_len, seq_len]
+            
+            # Fuse attention heads
+            if self.head_fusion == "mean":
+                attn = attn.mean(dim=0)  # [seq_len, seq_len]
+            elif self.head_fusion == "max":
+                attn = attn.max(dim=0)[0]
+            elif self.head_fusion == "min":
+                attn = attn.min(dim=0)[0]
+            
+            # Discard lowest attention values
+            flat = attn.view(-1)
+            _, indices = flat.topk(int(flat.size(0) * self.discard_ratio))
+            flat[indices] = 0
+            
+            # Add identity matrix (residual connection)
+            I = torch.eye(attn.size(0), device=attn.device)
+            attn = (attn + I) / 2
+            
+            # Normalize
+            attn = attn / attn.sum(dim=-1, keepdim=True)
+            
+            # Accumulate attention
+            if result is None:
+                result = attn
+            else:
+                result = torch.matmul(attn, result)
+        
+        # Get attention for CLS token to all patches
+        mask = result[0, 1:]  # [num_patches] - CLS attention to all patches
+        
+        # Reshape to spatial dimensions
+        patch_size = 8
+        num_patches_side = 224 // patch_size  # 28
+        mask = mask.reshape(num_patches_side, num_patches_side)
+        
+        # Convert to numpy and normalize
+        mask = mask.cpu().numpy()
+        mask = (mask - mask.min()) / (mask.max() - mask.min() + 1e-8)
+        
+        # Resize to original image size
+        mask = cv2.resize(mask, (224, 224), interpolation=cv2.INTER_CUBIC)
+        
+        return mask
 
 # ═══════════════════════════════════════════════════════════
 # MODEL HANDLER CLASS
@@ -150,7 +336,7 @@ class LunitDINOClassifier(nn.Module):
 
 class ModelHandler:
     """
-    Handles model loading, preprocessing, inference, and post-processing.
+    Handles model loading, preprocessing, inference, post-processing, and Grad-CAM.
     
     This is the main interface between Flask API and the ML model.
     """
@@ -182,6 +368,10 @@ class ModelHandler:
         
         # Initialize model
         self.model = self._load_model(model_path)
+        
+        # Initialize Grad-CAM
+        # Initialize Attention Rollout (better for ViT)
+        self.gradcam = ViTAttentionRollout(self.model, head_fusion="mean", discard_ratio=0.7)
         
         # Initialize preprocessor
         self._initialize_preprocessor(reference_image_path, use_stain_norm)
@@ -263,12 +453,73 @@ class ModelHandler:
         if use_stain_norm and reference_image_path:
             logger.info(f"  Reference image: {Path(reference_image_path).name}")
     
-    def predict(self, image_path: Union[str, Path]) -> Dict[str, Any]:
+    def generate_gradcam_heatmap(
+        self,
+        image_path: Union[str, Path],
+        output_path: Union[str, Path],
+        target_class: int = None,
+        alpha: float = 0.5
+    ) -> str:
+        """
+        Generate and save Grad-CAM heatmap overlay.
+        
+        Args:
+            image_path: Path to input image
+            output_path: Path to save heatmap overlay
+            target_class: Target class for Grad-CAM (if None, uses predicted class)
+            alpha: Transparency for overlay (0=only heatmap, 1=only image)
+            
+        Returns:
+            Path to saved heatmap image
+        """
+        
+        try:
+            # Load and preprocess image
+            input_tensor = preprocess_image(image_path)
+            input_tensor = input_tensor.to(self.device)
+            input_tensor.requires_grad = True
+            
+            # Generate Attention Rollout
+            logger.info("Generating Attention Rollout heatmap...")
+            cam = self.gradcam.generate_rollout(input_tensor, target_class)
+            
+            # Load original image for overlay
+            original_image = Image.open(image_path).convert('RGB')
+            original_image = original_image.resize((224, 224))
+            original_np = np.array(original_image)
+            
+            # Create heatmap
+            heatmap = cm.jet(cam)[:, :, :3]  # Remove alpha channel
+            heatmap = (heatmap * 255).astype(np.uint8)
+            
+            # Create overlay
+            overlay = (alpha * original_np + (1 - alpha) * heatmap).astype(np.uint8)
+            
+            # Save overlay
+            overlay_img = Image.fromarray(overlay)
+            overlay_img.save(output_path)
+            
+            logger.info(f"✓ Grad-CAM heatmap saved to: {output_path}")
+            
+            return str(output_path)
+            
+        except Exception as e:
+            logger.error(f"Failed to generate Grad-CAM: {str(e)}")
+            raise
+    
+    def predict(
+        self, 
+        image_path: Union[str, Path],
+        generate_heatmap: bool = False,
+        heatmap_output_dir: str = None
+    ) -> Dict[str, Any]:
         """
         Run inference on an image and return structured predictions.
         
         Args:
             image_path: Path to the image file
+            generate_heatmap: Whether to generate Grad-CAM heatmap
+            heatmap_output_dir: Directory to save heatmap (if None, uses same dir as image)
             
         Returns:
             Dictionary containing:
@@ -279,7 +530,8 @@ class ModelHandler:
                 'is_malignant': bool,         # Whether tissue is malignant
                 'class_probabilities': dict,  # All class probabilities
                 'top_3_predictions': list,    # Top 3 predictions with confidence
-                'clinical_group': str         # Clinical grouping
+                'clinical_group': str,        # Clinical grouping
+                'heatmap_path': str (optional) # Path to Grad-CAM heatmap if generated
             }
         """
         
@@ -343,6 +595,28 @@ class ModelHandler:
                 'clinical_group': clinical_group,
                 'num_classes': self.config['num_classes']
             }
+            
+            # Generate Grad-CAM heatmap if requested
+            if generate_heatmap:
+                # Determine output directory
+                if heatmap_output_dir is None:
+                    heatmap_output_dir = Path(image_path).parent
+                
+                # Create heatmap filename with timestamp
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                heatmap_filename = f"heatmap_{timestamp}.png"
+                heatmap_path = Path(heatmap_output_dir) / heatmap_filename
+                
+                # Generate and save heatmap
+                heatmap_path = self.generate_gradcam_heatmap(
+                    image_path=image_path,
+                    output_path=heatmap_path,
+                    target_class=predicted_class_idx,
+                    alpha=0.5  # 50% transparency
+                )
+                
+                result['heatmap_path'] = str(heatmap_path)
+                logger.info(f"Grad-CAM heatmap saved: {heatmap_path}")
             
             logger.info(f"Prediction: {tissue_type} (confidence: {confidence:.2%})")
             
@@ -414,6 +688,11 @@ class ModelHandler:
             'device': str(self.device),
             'classification_mode': self.config['classification_mode']
         }
+    
+    def __del__(self):
+        """Cleanup hooks when object is destroyed."""
+        if hasattr(self, 'gradcam'):
+            self.gradcam.remove_hooks()
 
 
 # ═══════════════════════════════════════════════════════════
@@ -437,7 +716,7 @@ def test_model_handler(
     """
     
     print("\n" + "="*80)
-    print("TESTING MODEL HANDLER")
+    print("TESTING MODEL HANDLER WITH GRAD-CAM")
     print("="*80)
     
     # Initialize handler
@@ -461,11 +740,16 @@ def test_model_handler(
         # Test prediction if image provided
         if test_image_path and Path(test_image_path).exists():
             print(f"\n{'='*80}")
-            print("RUNNING PREDICTION TEST")
+            print("RUNNING PREDICTION TEST WITH GRAD-CAM")
             print("="*80)
             print(f"Test image: {Path(test_image_path).name}")
             
-            result = handler.predict(test_image_path)
+            # Run prediction with Grad-CAM
+            result = handler.predict(
+                test_image_path,
+                generate_heatmap=True,
+                heatmap_output_dir='../uploads'
+            )
             
             print("\nPrediction Results:")
             print("-" * 80)
@@ -474,6 +758,9 @@ def test_model_handler(
             print(f"Confidence: {result['confidence']:.2%}")
             print(f"Is Malignant: {result['is_malignant']}")
             print(f"Clinical Group: {result['clinical_group']}")
+            
+            if 'heatmap_path' in result:
+                print(f"\n✓ Grad-CAM Heatmap: {result['heatmap_path']}")
             
             print("\nTop 3 Predictions:")
             for i, pred in enumerate(result['top_3_predictions'], 1):

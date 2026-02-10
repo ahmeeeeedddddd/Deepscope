@@ -31,7 +31,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Create uploads directory if it doesn't exist
-const uploadsDir = path.join(__dirname, 'uploads');
+const uploadsDir = path.join(__dirname, '..', 'backend', 'uploads');
 if (!fs.existsSync(uploadsDir)) {
     fs.mkdirSync(uploadsDir, { recursive: true });
 }
@@ -105,7 +105,7 @@ async function getTreatmentRecommendations(diagnosisData, clinicalData) {
             tissue_type: diagnosisData.tissue_type,     // ← Extract tissue_type
             patient_data: clinicalData                  // ← Changed from clinical_info to patient_data
         }, {
-            timeout: 60000
+            timeout: 180000  // 3 minutes timeout for LLM processing
         });
 
         return response.data;
@@ -274,13 +274,6 @@ app.get('/dashboard', (req, res) => {
 });
 
 /**
- * GET /treatment - Treatment page (placeholder)
- */
-app.get('/treatment', (req, res) => {
-    res.send('<h1>Treatment Page - Coming Soon</h1><p><a href="/">Back to Home</a></p>');
-});
-
-/**
  * GET /history - History page (placeholder)
  */
 app.get('/history', (req, res) => {
@@ -346,9 +339,20 @@ app.post('/upload', upload.single('histology_image'), async (req, res) => {
         };
 
         // Render results page with both diagnosis and treatment
+        
+        // Extract heatmap filename if available
+        let heatmapFilename = null;
+        if (classificationResult.heatmap_path) {
+            heatmapFilename = path.basename(classificationResult.heatmap_path);
+            console.log(`Grad-CAM heatmap available: ${heatmapFilename}`);
+        }
+
+        // Render results page with both diagnosis and treatment
         res.render('results', {
-            title: 'Diagnosis & Treatment Plan',
-            image_filename: req.file.filename,
+            title: 'Diagnosis Analysis',
+            image_filename: classificationResult.preview_image || req.file.filename,
+            heatmap_filename: heatmapFilename,
+            segmentation_filename: classificationResult.segmentation_filename || null, 
             diagnosis: classificationResult,
             treatment: {
                 recommendation: formattedTreatment,
@@ -435,6 +439,27 @@ app.get('/uploaded/:filename', (req, res) => {
     
     if (!fs.existsSync(filePath)) {
         return res.status(404).send('Image not found');
+    }
+
+    res.sendFile(filePath);
+});
+
+app.get('/heatmap/:filename', (req, res) => {
+    const filePath = path.join(uploadsDir, req.params.filename);
+    
+    if (!fs.existsSync(filePath)) {
+        return res.status(404).send('Heatmap not found');
+    }
+
+    res.sendFile(filePath);
+});
+
+
+app.get('/segmentation/:filename', (req, res) => {
+    const filePath = path.join(uploadsDir, req.params.filename);
+    
+    if (!fs.existsSync(filePath)) {
+        return res.status(404).send('Segmentation not found');
     }
 
     res.sendFile(filePath);
